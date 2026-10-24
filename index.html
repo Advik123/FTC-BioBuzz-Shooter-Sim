@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BIOBUZZ Launcher Simulator</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="app">
+    <div id="viewport">
+      <div id="hud">
+        <div id="result" class="badge idle">READY</div>
+        <div id="result-reason"></div>
+        <table id="readout">
+          <tr><th>Exit speed</th><td data-out="exitSpeed">-</td></tr>
+          <tr><th>Flight time</th><td data-out="flightTime">-</td></tr>
+          <tr><th>Apex height</th><td data-out="apex">-</td></tr>
+          <tr><th>Wheel RPM</th><td data-out="wheelRpm">-</td></tr>
+          <tr><th>Entry angle</th><td data-out="entry">-</td></tr>
+          <tr><th>Rim clearance</th><td data-out="clearance">-</td></tr>
+        </table>
+        <div id="hud-note">Dashed line = live preview of current settings. Solid = fired shots.</div>
+      </div>
+      <div id="views">
+        <button data-view="overview">Overview</button>
+        <button data-view="behind">Behind shooter</button>
+        <button data-view="side">Side</button>
+        <button data-view="top">Top</button>
+      </div>
+    </div>
+
+    <aside id="panel">
+      <header>
+        <h1>BIOBUZZ Launcher Sim</h1>
+        <div class="actions">
+          <button id="fire" class="primary">Fire</button>
+          <button id="clear-hive">Clear Hive</button>
+          <button id="clear-trails">Clear trails</button>
+        </div>
+        <div class="row tight">
+          <label><input type="checkbox" data-bind="ui.showPreview" /> Live preview</label>
+          <label>Playback
+            <select data-bind="ui.timeScale" data-type="number">
+              <option value="1">1x</option><option value="0.5">0.5x</option><option value="0.25">0.25x</option><option value="0.1">0.1x</option>
+            </select>
+          </label>
+          <label>Units
+            <select data-bind="ui.units">
+              <option value="imperial">in, ft/s</option><option value="metric">cm, m/s</option>
+            </select>
+          </label>
+        </div>
+      </header>
+
+      <details open>
+        <summary>Target</summary>
+        <div class="row">
+          <span class="lbl">Hive</span>
+          <label class="seg red"><input type="radio" name="hive" value="red" data-bind="cfg.target.hive" /> Red</label>
+          <label class="seg blue"><input type="radio" name="hive" value="blue" data-bind="cfg.target.hive" /> Blue</label>
+        </div>
+        <div class="row">
+          <span class="lbl">Cell</span>
+          <label class="seg"><input type="radio" name="cell" value="audience" data-bind="cfg.target.cell" /> Audience side</label>
+          <label class="seg"><input type="radio" name="cell" value="scoring" data-bind="cfg.target.cell" /> Scoring side</label>
+        </div>
+        <p class="hint">The chosen cell is shown facing up (only upward cells can be scored, G417). Hive tipping is not simulated.</p>
+        <div class="picker-wrap">
+          <canvas id="target-picker" width="320" height="230"></canvas>
+          <div class="hint">Landing spot on the cell floor: click or drag. Opening is at the top.</div>
+        </div>
+        <div class="grid2">
+          <label>Across cell u (in)<input type="number" step="0.1" data-bind="cfg.landing.u" data-type="number" /></label>
+          <label>Depth s from pivot (in)<input type="number" step="0.1" data-bind="cfg.landing.s" data-type="number" /></label>
+        </div>
+        <label class="check"><input type="checkbox" data-bind="cfg.stagedNectar" /> Include 3 pre-staged NECTAR in upward cells</label>
+      </details>
+
+      <details open>
+        <summary>Shooter position</summary>
+        <label class="slider">Distance to cell opening (in)
+          <span><input type="range" min="0" max="120" step="0.5" data-bind="cfg.distanceIn" data-type="number" /><input type="number" step="0.5" data-bind="cfg.distanceIn" data-type="number" /></span>
+        </label>
+        <p class="hint">Horizontal distance from the release point to the bottom lip of the opening.</p>
+        <label class="slider">Lateral offset (in)
+          <span><input type="range" min="-40" max="40" step="0.5" data-bind="cfg.lateralIn" data-type="number" /><input type="number" step="0.5" data-bind="cfg.lateralIn" data-type="number" /></span>
+        </label>
+        <label class="slider">Release height above floor (in)
+          <span><input type="range" min="2" max="29" step="0.25" data-bind="cfg.releaseHeightIn" data-type="number" /><input type="number" step="0.25" data-bind="cfg.releaseHeightIn" data-type="number" /></span>
+        </label>
+      </details>
+
+      <details open>
+        <summary>Launcher</summary>
+        <label>Motor <select id="motor" data-bind="cfg.motorId"></select></label>
+        <label class="slider">Motor RPM
+          <span><input id="rpm-range" type="range" min="0" max="6000" step="10" data-bind="cfg.motorRpm" data-type="number" /><input type="number" step="10" data-bind="cfg.motorRpm" data-type="number" /></span>
+        </label>
+        <label class="check inline"><input type="checkbox" data-bind="constraints.lockMotorRpm" /> Lock RPM for reverse solver</label>
+        <label class="slider">Ramp angle (deg)
+          <span><input type="range" min="0" max="89" step="0.25" data-bind="cfg.rampAngleDeg" data-type="number" /><input type="number" step="0.25" data-bind="cfg.rampAngleDeg" data-type="number" /></span>
+        </label>
+        <label class="check inline"><input type="checkbox" data-bind="constraints.lockRampAngle" /> Lock ramp angle for reverse solver</label>
+        <div class="grid2">
+          <label>Flywheel diameter (in)<input type="number" step="0.05" min="0.5" data-bind="cfg.wheelDiameterIn" data-type="number" /></label>
+          <label>Gear ratio (motor : wheel)<input type="number" step="0.05" min="0.05" data-bind="cfg.gearRatio" data-type="number" /></label>
+          <label>Slip / efficiency (%)<input type="number" step="1" min="1" max="100" data-bind="cfg.efficiencyPct" data-type="number" /></label>
+          <label>Spin <select id="spin" data-bind="cfg.spinMode"></select></label>
+        </div>
+        <p class="hint" id="launcher-derived"></p>
+      </details>
+
+      <details>
+        <summary>Ball (official spec, fixed)</summary>
+        <p id="ball-spec" class="hint"></p>
+      </details>
+
+      <details>
+        <summary>Robot constraints</summary>
+        <div class="grid2">
+          <label>Max shooter height (in)<input type="number" step="0.5" data-bind="constraints.maxShooterHeightIn" data-type="number" /></label>
+          <label>Max motor RPM (% of free)<input type="number" step="1" min="1" max="100" data-bind="ui.maxRpmPct" data-type="number" /></label>
+          <label>Min ramp angle (deg)<input type="number" step="0.5" data-bind="constraints.minRampDeg" data-type="number" /></label>
+          <label>Max ramp angle (deg)<input type="number" step="0.5" data-bind="constraints.maxRampDeg" data-type="number" /></label>
+          <label>Min distance (in)<input type="number" step="1" data-bind="constraints.minDistanceIn" data-type="number" /></label>
+          <label>Max distance (in)<input type="number" step="1" data-bind="constraints.maxDistanceIn" data-type="number" /></label>
+          <label>Ramp length (in)<input type="number" step="0.5" data-bind="constraints.rampLengthIn" data-type="number" /></label>
+        </div>
+        <label class="check"><input type="checkbox" data-bind="constraints.fitStartingCube" /> Shooter is fixed inside the 18 in. starting cube (R102)</label>
+        <p class="hint">Default max height 29 in. = R105 expanded height. Robot footprint (18 in. square behind the release point) must stay inside the field and off the Hive frame base. The manual has no launch-zone rule; only G417 (launch into the upward cell) applies.</p>
+        <ul id="violations" class="violations"></ul>
+      </details>
+
+      <details open>
+        <summary>Reverse solver</summary>
+        <div class="grid2">
+          <label>Rank by <select id="criterion" data-bind="ui.criterion"></select></label>
+          <label>Angle step
+            <select data-bind="ui.angleStep" data-type="number">
+              <option value="1">1 deg (fast)</option><option value="0.5">0.5 deg</option><option value="0.25">0.25 deg (fine)</option>
+            </select>
+          </label>
+          <label>RPM step (when angle locked)
+            <select data-bind="ui.rpmStep" data-type="number">
+              <option value="10">10 rpm</option><option value="25">25 rpm</option><option value="50">50 rpm</option><option value="100">100 rpm (fast)</option>
+            </select>
+          </label>
+        </div>
+        <label class="check"><input type="checkbox" data-bind="constraints.requireExactLanding" /> Require landing on the picked floor spot (within 1 in.)</label>
+        <label class="check"><input type="checkbox" data-bind="constraints.enforceFootprintInSolver" /> Block solver if 18 in. robot footprint is outside the field</label>
+        <button id="solve" class="primary wide">Solve ramp angle + RPM to score in cell</button>
+        <p id="load-verify" class="hint warn" hidden></p>
+        <div id="solve-progress" class="progress"><div></div></div>
+        <div id="solve-results"></div>
+        <canvas id="solve-plot" width="330" height="170"></canvas>
+      </details>
+
+      <details>
+        <summary>Advanced physics (assumptions)</summary>
+        <div class="grid2">
+          <label>Drag coefficient Cd<input type="number" step="0.01" data-bind="cfg.aero.cd" data-type="number" /></label>
+          <label>Air density (kg/m^3)<input type="number" step="0.001" data-bind="cfg.aero.rho" data-type="number" /></label>
+          <label>Lift slope (Cl per S)<input type="number" step="0.05" data-bind="cfg.aero.clSlope" data-type="number" /></label>
+          <label>Max lift coeff Cl<input type="number" step="0.01" data-bind="cfg.aero.clMax" data-type="number" /></label>
+        </div>
+        <label class="check"><input type="checkbox" data-bind="cfg.aero.drag" /> Air drag</label>
+        <label class="check"><input type="checkbox" data-bind="cfg.aero.magnus" /> Magnus effect</label>
+        <button id="reset" class="wide">Reset all settings to defaults</button>
+      </details>
+
+      <details>
+        <summary>Dimension sources</summary>
+        <div id="sources"></div>
+      </details>
+    </aside>
+  </div>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

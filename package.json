@@ -1,0 +1,11 @@
+{
+  "name": "biobuzz-launcher-sim",
+  "version": "1.0.0",
+  "private": true,
+  "description": "3D FTC BIOBUZZ Pollen launcher simulator (Three.js, no build step)",
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "serve": "npx --yes serve ."
+  }
+}
