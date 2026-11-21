@@ -7,8 +7,5 @@
   "scripts": {
     "test": "node --test",
     "serve": "npx --yes serve ."
-  },
-  "dependencies": {
-    "@vercel/analytics": "^2.0.1"
   }
 }
