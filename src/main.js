@@ -1,5 +1,6 @@
 // Wiring only: state, persistence, and passing data between the pure physics
 // modules (src/physics, src/field) and the Three.js / DOM views (src/render).
+import { inject } from '@vercel/analytics';
 import { createScene } from './render/scene.js';
 import { buildTiles } from './render/tiles.js';
 import { buildPerimeter, buildTape, buildFlowers } from './render/field.js';
@@ -363,5 +364,8 @@ window.addEventListener('keydown', (e) => {
     fire();
   }
 });
+
+// Initialize Vercel Web Analytics
+inject();
 
 update();
